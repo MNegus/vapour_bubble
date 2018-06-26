@@ -17,6 +17,9 @@ params_struct.inftemp = 375.15; % Temperature at infinity
 params_struct.infpress = 101325; % Atmospheric pressure
 params_struct.surftens = 0.058525; % Surface tension
 
+params_struct.evap = 1; % Evaporation coefficient
+params_struct.conden = 1; % Condensation coefficient
+
 % Liquid parameters
 params_struct.lden = 956.90; % Liquid density
 params_struct.lvisc = 0.00027593; % Liquid viscosity
@@ -25,11 +28,11 @@ params_struct.lspec = 4218.0; % Liquid specific heat capacity
 
 % Vapour parameters
 params_struct.vvisc = 1.2338e-05; % Vapour viscosity
-
+params_struct.vbulkvisc = 6.5 * params_struct.vvisc; % Bulk viscosity (M.S. Cramer)
 params_struct.vtherm = 0.025320; % Vapour thermal conductivity
 params_struct.vspec = 2088.3; % Vapour specific heat capacity
 
-% Equilibrium radius
+% Calculating equilibrium radius
     function val =  equil_eqn(rad_0)
         % Equation for equilibrium radius
         val = 2 * params_struct.surftens / rad_0 + params_struct.infpress ...
@@ -42,10 +45,15 @@ options = optimoptions(@fsolve, 'Display', 'iter', ...
 'StepTolerance', 10^-20); % Solver options
 
 fun = @(a) equil_eqn(a); % Used in fsolve
-
 guess = 10^-3; % Approximate guess for radius
+params_struct.rad_0 = fsolve(fun, guess, options); % Solve for radius
 
-params_struct.rad_0 = fsolve(fun, guess, options);
+% More vapour parameters
+params_struct.vrefpress = equil_sat_press(1, params_struct);
+params_struct.vrfden = params_struct.vrefpress / (params_struct.Rspec * params_struct.inftemp);
 
+% Typical value approximations
+params_struct.U = 1; % Typical velocity, let's assume 1 to start
+params_struct.t_0 = 10^-3; % Typical time scale, assume a millisecond
 end
 
