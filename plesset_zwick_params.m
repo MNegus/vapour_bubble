@@ -1,5 +1,5 @@
 function params_struct = plesset_zwick_params()
-%WATER_PARAMS Physical parameters to compare to Plesset & Zwick
+%PLESSET_ZWICK_PARAMS Physical parameters to compare to Plesset & Zwick
 %   Constants independent of numerical scheme. Chosen the 10 degrees case.
 %   Values taken on the saturation curve for the given temperature.
 
@@ -41,8 +41,7 @@ params_struct.vspec = 2088.3; % Vapour specific heat capacity
             - 2 * params_struct.surftens / (params_struct.Rspec * params_struct.lden * params_struct.inftemp * rad_0));
     end
 
-options = optimoptions(@fsolve, 'Display', 'iter', ...
-'StepTolerance', 10^-20); % Solver options
+options = optimoptions(@fsolve); % Solver options
 
 fun = @(a) equil_eqn(a); % Used in fsolve
 guess = 10^-3; % Approximate guess for radius

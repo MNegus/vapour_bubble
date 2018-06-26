@@ -1,4 +1,7 @@
-function num_params = numerical_params()
+function num_params = numerical_params(phys_params)
+% Adds the numerical parameters to the physical parameters struct
+    num_params = phys_params;
+
     num_params.eps = 10^-4; % The small epsilon parameter in equations
     
     % Spacial parameters
