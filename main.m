@@ -80,6 +80,10 @@ thing = odefun(1, X_0, Xp_0);
             - (rad_deriv / rad) * vap_bulk .* central_diff(vden, dx) ...
             + (vel_balance / rad) * (central_diff(vvel, dx) + 2 * (vvel(2 : M - 1)) ./ vap_bulk);
         
+    
+            
+        
+        
         % %%%%%%%%%%%%%%%%%%%%%%%%%%
         % Boundary at infinity
         % %%%%%%%%%%%%%%%%%%%%%%%%%%
