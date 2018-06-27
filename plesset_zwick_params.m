@@ -48,8 +48,10 @@ guess = 10^-3; % Approximate guess for radius
 params_struct.rad_0 = fsolve(fun, guess, options); % Solve for radius
 
 % More vapour parameters
-params_struct.vrefpress = equil_sat_press(1, params_struct);
-params_struct.vrfden = params_struct.vrefpress / (params_struct.Rspec * params_struct.inftemp);
+params_struct.vrfpress = params_struct.refpress * exp((params_struct.latent / params_struct.Rspec) ...
+            * (1 / params_struct.reftemp - 1 / params_struct.inftemp) ...
+            - 2 * params_struct.surftens / (params_struct.Rspec * params_struct.lden * params_struct.inftemp));
+params_struct.vrfden = params_struct.vrfpress / (params_struct.Rspec * params_struct.inftemp);
 
 % Typical value approximations
 params_struct.U = 1; % Typical velocity, let's assume 1 to start

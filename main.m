@@ -5,19 +5,45 @@ phys_params = plesset_zwick_params();
 
 params = numerical_params(phys_params);
 
-% Unpack required parameters for brevity
-M = params.M;
-N = params.N;
-dx = params.dx;
+% Unpack required parameters
+
+Rspec = params_struct.Rspec; % Specific gas constant
+latent = params_struct.latent; % Latent heat of evaporation
+
+inftemp = params_struct.inftemp; % Temperature at infinity
+infpress = params_struct.infpress; % Atmospheric pressure
+surftens = params_struct.surftens; % Surface tension
+
+evap = params_struct.evap; % Evaporation coefficient
+conden = params_struct.conden; % Condensation coefficient
+
+% Liquid parameters
+lden = params_struct.lden = 956.90; % Liquid density
+lvisc = params_struct.lvisc = 0.00027593; % Liquid viscosity
+ltherm = params_struct.ltherm = 0.679711; % Liquid thermal conductivity
+lspec = params_struct.lspec; % Liquid specific heat capacity
+
+% Vapour parameters
+vvisc = params_struct.vvisc; % Vapour viscosity
+vbulkvisc = params_struct.vbulkvisc; % Bulk viscosity (M.S. Cramer)
+vtherm = params_struct.vtherm; % Vapour thermal conductivity
+vspec = params_struct.vspec; % Vapour specific heat capacity
+vrfpress = params_struct.vrfpresss; % Vapour reference pressure
+vrfden = params_struct.vrfden; % Vapour reference density
+
+% Typical velocity and time
+U = params_struct.U;
+t_0 = params_struct.t_0;
 
 % Defines ranges in collected array for state variables
 vden_range = 1 : M;
 vvel_range = M + 1 : 2 * M;
 vtemp_range = 2 * M + 1 : 3 * M;
-ltemp_range = 3 * M + 1 : N + 2 * M + 2;
-lboundvel_idx = N + 2 * M + 3;
-lboundpress_idx = N + 2 * M + 4;
-rad_idx = N + 2 * M + 5;
+ltemp_range = 3 * M + 1 : N + 2 * M + 1;
+lboundvel_idx = N + 2 * M + 2;
+lboundpress_idx = N + 2 * M + 3;
+rad_idx = N + 2 * M + 4;
+
 
 % Creates collected arrays for initial conditions
 X_0 = zeros(1, rad_idx); % Collected array for variables
@@ -32,10 +58,19 @@ liq_bulk = rscale(M + 1: N - 1); % Spacial distances in bulk liquid
 
 
 % Useful constants
-vvisc_comb = 4 * params.vvisc / 3 + params.vbulkvisc; % Combined viscosity
-vel_balance = params.U * params.t_0 / params.rad_0;
+vel_balance = params.U * t_0 / rad_0; % Velocity term appearing a lot
 
-thing = odefun(1, X_0, Xp_0);
+vvisc_term = t_0 * (4 * params.vvisc / 3 + params.vbulkvisc) ...
+    / (params.vrfden * rad_0^2); % Viscosity term for vapour
+
+vtherm_term = params.vtherm * t_0 / (rad_0^2 * params.vrfden * params.vspec); 
+    % Thermal conduction term for vapour
+
+ltherm_term = params.ltherm * t_0 / (rad_0^2 * params.lden * params.lspec);
+    % Thermal conduction term for liquid
+
+
+out = odefun(1, X_0, Xp_0);
     function res = odefun(t, X, Xp)
         
         % %%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -76,12 +111,46 @@ thing = odefun(1, X_0, Xp_0);
         % %%%%%%%%%%%%%%%%%%%%%%%%%%
         % Vapour bulk
         % %%%%%%%%%%%%%%%%%%%%%%%%%%
+        
+        % Conservation of mass
         res(vden_range(2 : M - 1)) = vden_deriv(2 : M - 1) ...
             - (rad_deriv / rad) * vap_bulk .* central_diff(vden, dx) ...
             + (vel_balance / rad) * (central_diff(vvel, dx) + 2 * (vvel(2 : M - 1)) ./ vap_bulk);
         
-    
+        % Conservation of momentum
+        res(vvel_range(2 : M - 1)) = vvel_deriv(2 : M - 1) ...
+            - (vvisc_term / rad^2) * second_diff(vvel, dx) ...
+            - ((rad_deriv / rad) * vap_bulk + (2 * vvisc_term / rad^2) ./ vap_bulk) ...
+                .* central_diff(vvel, dx) ...
+            - (2 * vvisc_term / rad^2) * (vvel(2 : M - 1) ./ (vap_bulk ./ vap_bulk)) ...
+            + params.t_0 * params.vrfpress / (params.rad_0 * params.U * params.vrfden) ...
+                * (1 / rad) * central_diff(vpress(vden, vtemp), dx);
+        
+        % Conservation of energy
+        res(vtemp_range(2 : M - 1)) = vtemp_deriv(2 : M - 1) ...
+            - ((rad_deriv / rad) * vap_bulk + (2 * vtherm_term / rad^2) ./ vap_bulk) ...
+                .* central_diff(vtemp, dx) ...
+            - (vtherm_term / rad^2) * second_diff(vtemp, dx) ...
+            + params.vrfpress * params.U * params.t_0  ...
+                / (params.rad_0 * params.vrfden * params.vspec * params.inftemp) ...
+                * (1 / rad) * (central_diff(vvel, dx) + 2 * vvel(2 : M - 1) ./ vap_bulk);
+     
+        
+        % %%%%%%%%%%%%%%%%%%%%%%%%%%
+        % Boundary conditions at bubble
+        % %%%%%%%%%%%%%%%%%%%%%%%%%%   
+        
+        res(vden_range(M)) = 
             
+        % %%%%%%%%%%%%%%%%%%%%%%%%%%
+        % Liquid bulk
+        % %%%%%%%%%%%%%%%%%%%%%%%%%%    
+        
+        % Conservation of energy
+        res(ltemp_range(2 : N - M)) = ltemp_deriv(2 : N - M) ...
+            - ((rad_deriv / rad) * liq_bulk + (2 *ltherm_term / rad^2) ./ liq_bulk) ...
+                .* central_diff(ltemp, dx) ...
+            - (ltherm_term / rad^2) * second_diff(ltemp, dx);
         
         
         % %%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -90,6 +159,27 @@ thing = odefun(1, X_0, Xp_0);
         
         % Temperature pertubation is zero at infinity
         res(ltemp_range(N - M + 1)) = ltemp(N - M + 1);
+    end
+
+
+    % Ideal gas law for pressure in vapour
+    function val = vpress(vden, vtemp)
+        val = vden + vtemp;
+    end
+
+    % Saturation pressure at equilibrium
+    function sat_press = equil_sat_press(rad)
+    sat_press = params.refpress * exp((params.latent / params.Rspec) ...
+    * (1 / params.reftemp - 1 / params.inftemp) ...
+    - 2 * params.surftens / (params.Rspec * params.lden * params.inftemp * params.rad_0 * rad));
+    end
+
+
+    % Mass flux from HKS equation
+    function j = massflux(rad, lboundtemp, vboundtemp, vboundpress)
+        j = 2 / (2 - params.conden) * sqrt(1 / (2 * pi * params.inftemp * params.Rspec)) ...
+            * (params.evap * equil_sat_press(rad) - params.conden * params.vrfpress ...
+            + 
     end
 
     % Creates function for the j^th rscale (physical position) 
