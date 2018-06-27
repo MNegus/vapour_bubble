@@ -26,7 +26,16 @@ X_0(rad_idx) = 1; % Specify that the initial (dimensionless) radius is 1
 Xp_0 = zeros(1, rad_idx); % Collected array for time derivatives
 Xp_0(rad_idx) = 10^-4; % Initial growth speed of bubble
 
-    
+% Useful arrays
+vap_bulk = rscale(2 : M - 1); % Spacial distances in bulk vapour
+liq_bulk = rscale(M + 1: N - 1); % Spacial distances in bulk liquid
+
+
+% Useful constants
+vvisc_comb = 4 * params.vvisc / 3 + params.vbulkvisc; % Combined viscosity
+vel_balance = params.U * params.t_0 / params.rad_0;
+
+thing = odefun(1, X_0, Xp_0);
     function res = odefun(t, X, Xp)
         
         % %%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -67,7 +76,9 @@ Xp_0(rad_idx) = 10^-4; % Initial growth speed of bubble
         % %%%%%%%%%%%%%%%%%%%%%%%%%%
         % Vapour bulk
         % %%%%%%%%%%%%%%%%%%%%%%%%%%
-        
+        res(vden_range(2 : M - 1)) = vden_deriv(2 : M - 1) ...
+            - (rad_deriv / rad) * vap_bulk .* central_diff(vden, dx) ...
+            + (vel_balance / rad) * (central_diff(vvel, dx) + 2 * (vvel(2 : M - 1)) ./ vap_bulk);
         
         % %%%%%%%%%%%%%%%%%%%%%%%%%%
         % Boundary at infinity
@@ -75,7 +86,7 @@ Xp_0(rad_idx) = 10^-4; % Initial growth speed of bubble
         
         % Temperature pertubation is zero at infinity
         res(ltemp_range(N - M + 1)) = ltemp(N - M + 1);
-        
+    end
 
     % Creates function for the j^th rscale (physical position) 
     function position = rscale(j)
