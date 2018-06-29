@@ -1,4 +1,4 @@
-function out = main()
+function main()
 % Create structs for physical and numerical parameters and load them into
 % workspace
 phys_params = plesset_zwick_params();
@@ -58,11 +58,11 @@ rad_idx = N + 2 * M + 4;
 
 
 % Creates collected arrays for initial conditions
-X_0 = zeros(1, rad_idx); % Collected array for variables
+X_0 = zeros(rad_idx, 1); % Collected array for variables
 X_0(rad_idx) = 1; % Specify that the initial (dimensionless) radius is 1
 
-Xp_0 = zeros(1, rad_idx); % Collected array for time derivatives
-Xp_0(rad_idx) = 10^-4; % Initial growth speed of bubble
+Xp_0 = zeros(rad_idx, 1); % Collected array for time derivatives
+Xp_0(rad_idx) = 0; % Initial growth speed of bubble
 
 % Useful arrays
 vap_bulk = rscale(2 : M - 1); % Spacial distances in bulk vapour
@@ -81,29 +81,35 @@ vtherm_term = vtherm * t_0 / (rad_0^2 * vrfden * vspec);
 ltherm_term = ltherm * t_0 / (rad_0^2 * lden * lspec);
     % Thermal conduction term for liquid
 
+options = odeset('Stats','on', 'RelTol', 1e-2);
+tspan = linspace(0, 1, 5000);
+[t, y] = ode15i(@odefun, tspan, X_0, Xp_0, options);
+solution = [t, y];
 
+save('vars.mat', 'solution');
+save('time.mat', 't');
 
-[t, y] = 
-    
+plot(t, y(:, rad_idx));
+
     function res = odefun(t, X, Xp)
         
         % %%%%%%%%%%%%%%%%%%%%%%%%%%
         % Defining arrays
         % %%%%%%%%%%%%%%%%%%%%%%%%%%
-        res = ones(1, rad_idx); % Residues array
+        res = ones(rad_idx, 1); % Residues array
         
         % Creating arrays for state variables
-        vden = X(vden_range); % Vapour density
-        vden_deriv = Xp(vden_range);
+        vden = X(vden_range).'; % Vapour density
+        vden_deriv = Xp(vden_range).';
         
-        vvel = X(vvel_range); % Vapour velocity
-        vvel_deriv = Xp(vvel_range);
+        vvel = X(vvel_range).'; % Vapour velocity
+        vvel_deriv = Xp(vvel_range).';
         
-        vtemp = X(vtemp_range); % Vapour temperature
-        vtemp_deriv = Xp(vtemp_range);
+        vtemp = X(vtemp_range).'; % Vapour temperature
+        vtemp_deriv = Xp(vtemp_range).';
         
-        ltemp = X(ltemp_range); % Liquid temperature
-        ltemp_deriv = Xp(ltemp_range);
+        ltemp = X(ltemp_range).'; % Liquid temperature
+        ltemp_deriv = Xp(ltemp_range).';
         
         lboundvel = X(lboundvel_idx); % Liquid velocity at boundary
         lboundvel_deriv = Xp(lboundvel_idx);
@@ -125,7 +131,6 @@ ltherm_term = ltherm * t_0 / (rad_0^2 * lden * lspec);
         % %%%%%%%%%%%%%%%%%%%%%%%%%%
         % Vapour bulk
         % %%%%%%%%%%%%%%%%%%%%%%%%%%
-        
         % Conservation of mass
         res(vden_range(2 : M - 1)) = vden_deriv(2 : M - 1) ...
             - (rad_deriv / rad) * vap_bulk .* central_diff(vden, dx) ...
@@ -217,6 +222,9 @@ ltherm_term = ltherm * t_0 / (rad_0^2 * lden * lspec);
         
         % Temperature pertubation is zero at infinity
         res(ltemp_range(N - M + 1)) = ltemp(N - M + 1);
+        
+        
+        
     end
 
 
@@ -246,5 +254,7 @@ ltherm_term = ltherm * t_0 / (rad_0^2 * lden * lspec);
     function position = rscale(j)
         position = dx * (j-1);
     end
+
+    
 
 end
