@@ -54,7 +54,7 @@ params_struct.vrfpress = params_struct.refpress * exp((params_struct.latent / pa
 params_struct.vrfden = params_struct.vrfpress / (params_struct.Rspec * params_struct.inftemp);
 
 % Typical value approximations
-params_struct.U = 10; % Typical velocity, let's assume 1 to start
+params_struct.U = 1; % Typical velocity, let's assume 1 to start
 params_struct.t_0 = 10^-3; % Typical time scale, assume a millisecond
 end
 
